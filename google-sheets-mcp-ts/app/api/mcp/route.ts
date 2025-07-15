@@ -50,10 +50,10 @@ const handler = createMcpHandler(
         ),
         date: z.string().optional().describe('Current date in MM/DD/YYYY format. Not the job posting date'),    // Optional string
         source: z.string().optional().describe('Source of the job posting'),         // Optional string
-        type: z.string().optional().describe('jobType, e.g. DevOps, Cloud, Web, Full Stack, Backend, Frontend, General, Embedded, etc. NOT the type of internship (Part-Time, Full-Time, etc.)'),         // Optional string
+        jobType: z.string().optional().describe('Job type, e.g. DevOps, Cloud, Web, Full Stack, Backend, Frontend, General, Embedded, etc. NOT the type of internship (Part-Time, Full-Time, etc.)'),         // Optional string
       },
       // The actual function that runs when this tool is called
-      async ({ company, role, description, date, source, type }) => {
+      async ({ company, role, description, date, source, jobType }) => {
 
         // Get secret configuration from environment variables
         // These are like passwords stored securely on the server
@@ -79,7 +79,7 @@ const handler = createMcpHandler(
           description: description || '',       // Job description (empty string if not provided)
           date: date || '',                     // Application date (empty string if not provided)
           source: source || '',                 // Where the job was found (empty string if not provided)
-          type: type || '',                     // Job type (empty string if not provided)
+          type: jobType || '',                  // Job type (empty string if not provided)
         };
 
         try {
