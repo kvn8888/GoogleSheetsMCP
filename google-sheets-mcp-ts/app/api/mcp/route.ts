@@ -54,6 +54,17 @@ const handler = createMcpHandler(
       },
       // The actual function that runs when this tool is called
       async ({ company, role, description, date, source, jobType }) => {
+        
+        // DEBUG: Log the received parameters
+        console.log('🔍 DEBUG: Received parameters:', {
+          company,
+          role,
+          description,
+          date,
+          source,
+          jobType,
+          allArgs: { company, role, description, date, source, jobType }
+        });
 
         // Get secret configuration from environment variables
         // These are like passwords stored securely on the server
@@ -235,6 +246,19 @@ async function authenticatedHandler(request: NextRequest) {
       JSON.stringify({ error: 'Unauthorized. Provide API key via Authorization header or x-api-key header.' }),
       { status: 401, headers: { 'Content-Type': 'application/json' } }
     );
+  }
+  
+  // DEBUG: Log incoming request details
+  try {
+    const body = await request.clone().text();
+    console.log('🔍 DEBUG: Incoming MCP request:', {
+      method: request.method,
+      url: request.url,
+      headers: Object.fromEntries(request.headers.entries()),
+      body: body
+    });
+  } catch (e) {
+    console.log('🔍 DEBUG: Could not log request body:', e);
   }
   
   // If authentication passes, let the request go to our MCP handler
