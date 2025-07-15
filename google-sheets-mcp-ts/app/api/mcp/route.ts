@@ -45,12 +45,12 @@ const handler = createMcpHandler(
         // Zod schemas validate the data - ensures we get what we expect
         company: z.string().describe('Company name'),      // Required: must be a string
         role: z.string().describe('Job title'),            // Required: must be a string
-        description: z.string().optional().describe(       // Optional: can be undefined
+        description: z.string().describe(
           'Job description and software qualifications, always include the responsibilities, minimum requirements and additional qualifications verbatim. There is no character limit in any of the fields'
         ),
-        date: z.string().optional().describe('Current date in MM/DD/YYYY format. Not the job posting date'),    // Optional string
-        source: z.string().describe('Source of the job posting'),         // Optional string
-        type: z.string().optional().describe('Type, e.g. DevOps, Cloud, Web, Full Stack, Backend, Frontend, General, Embedded, etc. NOT the type of internship (Part-Time, Full-Time, etc.)'),         // Optional string
+        date: z.string().describe('Current date in MM/DD/YYYY format. Not the job posting date'),
+        source: z.string().describe('Source of the job posting'),
+        type: z.string().describe('Type, e.g. DevOps, Cloud, Web, Full Stack, Backend, Frontend, General, Embedded, etc. NOT the type of internship (Part-Time, Full-Time, etc.)'),
       },
       // The actual function that runs when this tool is called
       async ({ company, role, description, date, source, type }) => {
@@ -76,10 +76,10 @@ const handler = createMcpHandler(
           secret: secretKey,                    // Authentication for Google Apps Script
           company,                              // Job company name
           role,                                 // Job title/role
-          description: description || '',       // Job description (empty string if not provided)
-          date: date || '',                     // Application date (empty string if not provided)
-          source: source || '',                 // Where the job was found (empty string if not provided)
-          type: type || '',                     // Job type (empty string if not provided)
+          description,
+          date,
+          source,
+          type,
         };
 
         try {
