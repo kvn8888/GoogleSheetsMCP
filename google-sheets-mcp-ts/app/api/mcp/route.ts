@@ -49,7 +49,7 @@ const handler = createMcpHandler(
           'Job description and software qualifications, always include the responsibilities, minimum requirements and additional qualifications verbatim. There is no character limit in any of the fields'
         ),
         date: z.string().optional().describe('Current date in MM/DD/YYYY format. Not the job posting date'),    // Optional string
-        source: z.string().optional().describe('Source of the job posting'),         // Optional string
+        source: z.string().describe('Source of the job posting'),         // Optional string
         type: z.string().optional().describe('Type, e.g. DevOps, Cloud, Web, Full Stack, Backend, Frontend, General, Embedded, etc. NOT the type of internship (Part-Time, Full-Time, etc.)'),         // Optional string
       },
       // The actual function that runs when this tool is called
