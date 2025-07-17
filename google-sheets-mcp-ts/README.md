@@ -6,6 +6,7 @@ A Model Context Protocol (MCP) server that helps you track job applications by a
 
 This MCP server provides AI assistants (like ChatGPT, Claude, or Cursor) with tools to:
 - **Add job details** to your Google Sheet automatically
+- **Look up existing applications** by company name to avoid duplicate applications
 - **Check server health** to ensure everything is configured properly  
 - **Test connections** to your Google Apps Script
 

@@ -22,6 +22,7 @@ export default function Home() {
           <h3 className="text-lg font-semibold mb-3">🛠️ Available Tools</h3>
           <ul className="space-y-2 text-sm">
             <li><strong>append_job_row</strong> - Add job details to your Google Sheet</li>
+            <li><strong>lookup_jobs</strong> - Search for existing job applications by company name</li>
             <li><strong>health_check</strong> - Check server configuration status</li>
             <li><strong>test_connection</strong> - Test Google Apps Script connectivity</li>
           </ul>

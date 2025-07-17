@@ -85,6 +85,7 @@ const handler = createMcpHandler(
         // This matches exactly what the original Python code sent
         const payload = {
           secret: secretKey,                    // Authentication for Google Apps Script
+          action: 'add',                        // Specify this is an ADD action
           company,                              // Job company name
           role,                                 // Job title/role
           description: description || '',       // Job description (empty string if not provided)
@@ -221,6 +222,118 @@ const handler = createMcpHandler(
               { 
                 type: 'text', 
                 text: `❌ Connection test failed: ${errorMessage}` 
+              }
+            ],
+          };
+        }
+      },
+    );
+
+    /**
+     * TOOL 4: lookup_jobs
+     * This tool looks up existing job applications by company name
+     * Like searching a database to see if you've already applied to a company
+     */
+    server.tool(
+      'lookup_jobs',
+      'Look up existing job applications by company name to see if you have already applied',
+      {
+        company: z.string().describe('Company name to search for (case-insensitive, partial matches allowed)'),
+      },
+      async ({ company }) => {
+        // Get secret configuration from environment variables
+        const scriptUrl = process.env.SCRIPT_URL;
+        const secretKey = process.env.SECRET_KEY;
+        
+        // Check if required environment variables are set
+        if (!scriptUrl) {
+          throw new Error('SCRIPT_URL environment variable is not set');
+        }
+        
+        if (!secretKey) {
+          throw new Error('SECRET_KEY environment variable is not set');
+        }
+
+        // Prepare the lookup request payload
+        const payload = {
+          secret: secretKey,                    // Authentication for Google Apps Script
+          action: 'lookup',                     // Specify this is a LOOKUP action
+          company,                              // Company name to search for
+        };
+
+        try {
+          // Make HTTP request to Google Apps Script for lookup
+          const response = await fetch(scriptUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          });
+
+          // Check if the request was successful
+          if (!response.ok) {
+            throw new Error(`Google Apps Script request failed: ${response.status} ${response.statusText}`);
+          }
+
+          // Parse the JSON response from Google Apps Script
+          const responseData = await response.json();
+
+          // Check if the lookup was successful
+          if (!responseData.success) {
+            return {
+              content: [
+                { 
+                  type: 'text', 
+                  text: `❌ Lookup failed: ${responseData.message}` 
+                }
+              ],
+            };
+          }
+
+          // Format the results for display
+          const results = responseData.results || [];
+          
+          if (results.length === 0) {
+            return {
+              content: [
+                { 
+                  type: 'text', 
+                  text: `🔍 No job applications found for "${company}".\n\nYou haven't applied to this company yet!` 
+                }
+              ],
+            };
+          }
+
+          // Format the results nicely
+          let resultText = `🔍 Found ${results.length} job application(s) for "${company}":\n\n`;
+          
+          results.forEach((job: any, index: number) => {
+            resultText += `📋 Application #${index + 1} (Row ${job.rowNumber}):\n`;
+            resultText += `   Company: ${job.company}\n`;
+            resultText += `   Role: ${job.role}\n`;
+            resultText += `   Description: ${job.description || 'N/A'}\n`;
+            resultText += `   Date Applied: ${job.date || 'N/A'}\n`;
+            resultText += `   Source: ${job.source || 'N/A'}\n`;
+            resultText += `   Type: ${job.type || 'N/A'}\n\n`;
+          });
+
+          return {
+            content: [
+              { 
+                type: 'text', 
+                text: resultText 
+              }
+            ],
+          };
+        } catch (error) {
+          // If something went wrong, return an error message
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+          return {
+            content: [
+              { 
+                type: 'text', 
+                text: `❌ Failed to lookup jobs: ${errorMessage}` 
               }
             ],
           };
