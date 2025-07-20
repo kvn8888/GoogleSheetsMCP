@@ -103,7 +103,7 @@ npm run test
 
 Visit `http://localhost:3000` to see the landing page and `http://localhost:3000/api/mcp` for the MCP endpoint.
 
-## 📖 Using the Tools
+## Using the Tools
 
 ### Tool 1: append_job_row
 
@@ -138,7 +138,7 @@ Tests if the Google Apps Script is reachable.
 
 **Returns:** Connection test results
 
-## 🔧 MCP Client Configuration
+## MCP Client Configuration
 
 ### For Cursor IDE
 
@@ -164,7 +164,7 @@ Add to your Cursor settings:
 - **URL**: `https://your-deployment.vercel.app/api/mcp`
 - **Headers**: `x-api-key: your-production-api-key`
 
-## 🚀 Deployment to Vercel
+## Deployment to Vercel
 
 ### 1. Deploy the Project
 
@@ -201,14 +201,14 @@ Update your MCP clients to use the production URL and API key:
 }
 ```
 
-## 🔒 Security
+## Security
 
 - **Local Development**: No authentication required
 - **Production**: Requires API key via `x-api-key` header or `Authorization: Bearer` header
 - **Google Apps Script**: Protected by secret key verification
 - **HTTPS**: Automatic with Vercel deployment
 
-## 🧪 Testing
+## Testing
 
 ### Manual Testing
 
@@ -266,7 +266,7 @@ npx @modelcontextprotocol/inspector@latest http://localhost:3000/api/mcp
 - For local development, remove or comment out `MCP_API_KEY`
 - For production, verify the API key in your client configuration
 
-## 📂 Project Structure
+## Project Structure
 
 ```
 google-sheets-mcp-ts/
