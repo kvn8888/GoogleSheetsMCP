@@ -1,7 +1,0 @@
-{
-  "mcpServers": {
-    "demo-server": {
-      "url": "https://mcp-demo-qx5n86jsf-kvn8888s-projects.vercel.app/api/mcp"
-    }
-  }
-}
