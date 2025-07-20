@@ -23,6 +23,7 @@ export default function Home() {
           <ul className="space-y-2 text-sm">
             <li><strong>append_job_row</strong> - Add job details to your Google Sheet</li>
             <li><strong>lookup_jobs</strong> - Search for existing job applications by company name</li>
+            <li><strong>daily_application_stats</strong> - View today's application count and details</li>
             <li><strong>health_check</strong> - Check server configuration status</li>
             <li><strong>test_connection</strong> - Test Google Apps Script connectivity</li>
           </ul>

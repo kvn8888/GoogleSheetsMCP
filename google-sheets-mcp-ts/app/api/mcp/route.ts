@@ -340,6 +340,128 @@ const handler = createMcpHandler(
         }
       },
     );
+
+    /**
+     * TOOL 5: daily_application_stats
+     * This tool shows how many job applications were submitted today
+     * Like a daily productivity tracker for your job search
+     */
+    server.tool(
+      'daily_application_stats',
+      'Get statistics for job applications submitted today',
+      {}, // No input parameters needed
+      async () => {
+        // Get secret configuration from environment variables
+        const scriptUrl = process.env.SCRIPT_URL;
+        const secretKey = process.env.SECRET_KEY;
+        
+        // Check if required environment variables are set
+        if (!scriptUrl) {
+          throw new Error('SCRIPT_URL environment variable is not set');
+        }
+        
+        if (!secretKey) {
+          throw new Error('SECRET_KEY environment variable is not set');
+        }
+
+        // Prepare the daily stats request payload
+        const payload = {
+          secret: secretKey,                    // Authentication for Google Apps Script
+          action: 'daily_stats',                // Specify this is a DAILY_STATS action
+        };
+
+        try {
+          // Make HTTP request to Google Apps Script for daily stats
+          const response = await fetch(scriptUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          });
+
+          // Check if the request was successful
+          if (!response.ok) {
+            throw new Error(`Google Apps Script request failed: ${response.status} ${response.statusText}`);
+          }
+
+          // Parse the JSON response from Google Apps Script
+          const responseData = await response.json();
+
+          // Check if the stats lookup was successful
+          if (!responseData.success) {
+            return {
+              content: [
+                { 
+                  type: 'text', 
+                  text: `❌ Daily stats failed: ${responseData.message}` 
+                }
+              ],
+            };
+          }
+
+          // Format the daily stats for display
+          const todayCount = responseData.todayCount || 0;
+          const todayApplications = responseData.todayApplications || [];
+          const date = responseData.date || 'today';
+          
+          if (todayCount === 0) {
+            return {
+              content: [
+                { 
+                  type: 'text', 
+                  text: `📊 Daily Application Stats for ${date}:\n\n🎯 Applications submitted today: 0\n\nNo job applications were submitted today yet. Keep up the job search!` 
+                }
+              ],
+            };
+          }
+
+          // Format the results with details
+          let resultText = `📊 Daily Application Stats for ${date}:\n\n`;
+          resultText += `🎯 Total applications submitted today: ${todayCount}\n\n`;
+          
+          if (todayApplications.length > 0) {
+            resultText += `📋 Today's Applications:\n\n`;
+            
+            todayApplications.forEach((job: any, index: number) => {
+              resultText += `${index + 1}. ${job.company} - ${job.role}\n`;
+              if (job.source) resultText += `   Source: ${job.source}\n`;
+              if (job.type) resultText += `   Type: ${job.type}\n`;
+              resultText += `\n`;
+            });
+          }
+
+          // Add motivational message based on count
+          if (todayCount >= 5) {
+            resultText += `🔥 Great job! You're crushing it with ${todayCount} applications today!`;
+          } else if (todayCount >= 3) {
+            resultText += `💪 Good work! ${todayCount} applications is solid progress.`;
+          } else if (todayCount >= 1) {
+            resultText += `👍 Nice start! You've applied to ${todayCount} position${todayCount > 1 ? 's' : ''} today.`;
+          }
+
+          return {
+            content: [
+              { 
+                type: 'text', 
+                text: resultText 
+              }
+            ],
+          };
+        } catch (error) {
+          // If something went wrong, return an error message
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+          return {
+            content: [
+              { 
+                type: 'text', 
+                text: `❌ Failed to get daily stats: ${errorMessage}` 
+              }
+            ],
+          };
+        }
+      },
+    );
   },
   {},                    // Additional MCP server options (we don't need any)
   { basePath: '/api' },  // URL prefix for our API (makes URLs like /api/mcp)
