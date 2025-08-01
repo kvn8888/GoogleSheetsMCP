@@ -210,70 +210,61 @@ Update your MCP clients to use the production URL and API key:
 - **Google Apps Script**: Protected by secret key verification
 - **HTTPS**: Automatic with Vercel deployment
 
-## OAuth Configuration for Claude
+## Claude MCP Integration
 
-This server now supports OAuth authentication for Claude MCP integration.
+### For Claude Desktop/macOS App
 
-### 1. Get OAuth Credentials
+Configure Claude with your MCP server:
+- **Server URL**: `https://your-deployed-domain.vercel.app/api/mcp`
+- **Authentication**: Bearer token with your API key
 
-Contact Anthropic to register your MCP server as an OAuth application:
-- Application name: "Google Sheets MCP Server"
-- Redirect URI: `https://your-domain.vercel.app/api/oauth/callback`
-- Scopes: `read`, `write`
+### For Claude API Integration
 
-### 2. Environment Variables
+For developers using Claude's Messages API:
 
-Add these OAuth variables to your `.env.local` or Vercel environment:
-
-```bash
-# OAuth Configuration for Claude MCP Integration
-OAUTH_CLIENT_ID=your-oauth-client-id
-OAUTH_CLIENT_SECRET=your-oauth-client-secret
-OAUTH_REDIRECT_URI=https://your-domain.vercel.app/api/oauth/callback
+```json
+{
+  "type": "url", 
+  "url": "https://your-deployed-domain.vercel.app/api/mcp",
+  "name": "google-sheets-job-tracker",
+  "authorization_token": "YOUR_API_KEY_HERE"
+}
 ```
 
-### 3. Get Authorization URL
+### Example Usage in Claude
 
-Use the `oauth_info` tool to get your authorization URL:
+When calling Claude's Messages API with MCP:
 
 ```bash
-curl -X POST https://your-domain.vercel.app/api/mcp \
+curl https://api.anthropic.com/v1/messages \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: $ANTHROPIC_API_KEY" \
+  -H "anthropic-version: 2023-06-01" \
+  -H "anthropic-beta: mcp-client-2025-04-04" \
   -d '{
-    "jsonrpc": "2.0",
-    "id": 1,
-    "method": "tools/call",
-    "params": {
-      "name": "oauth_info",
-      "arguments": {}
-    }
+    "model": "claude-sonnet-4-20250514",
+    "max_tokens": 1000,
+    "messages": [{"role": "user", "content": "Add a job application for TechCorp as Software Engineer"}],
+    "mcp_servers": [
+      {
+        "type": "url",
+        "url": "https://your-domain.vercel.app/api/mcp",
+        "name": "google-sheets-job-tracker",
+        "authorization_token": "your-api-key"
+      }
+    ]
   }'
 ```
 
-### 4. Configure Claude
-
-When setting up MCP in Claude:
-1. **MCP Server URL**: `https://your-domain.vercel.app/api/mcp`
-2. **OAuth Client ID**: Your OAuth client ID from step 1
-3. **Authorization URL**: The URL returned by the `oauth_info` tool
-
 ### Authentication Methods
 
-The server supports both authentication methods:
-
-**API Key Authentication:**
+**API Key Authentication (Recommended):**
 ```bash
 # Using Authorization header
 Authorization: Bearer your-api-key
 
 # Using x-api-key header
 x-api-key: your-api-key
-```
-
-**OAuth Authentication:**
-```bash
-# Using OAuth access token
-Authorization: Bearer oauth-access-token
 ```
 
 ## Testing
