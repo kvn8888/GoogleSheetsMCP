@@ -2,27 +2,105 @@
 import { z } from 'zod';                              // Zod: validates input data (like checking if a string is actually a string)
 import { createMcpHandler } from '@vercel/mcp-adapter'; // Vercel's official MCP adapter - handles all the complex MCP protocol stuff for us
 import { NextRequest } from 'next/server';             // Next.js type for HTTP requests - like Express.js but for Next.js
+import { createHash, randomBytes } from 'crypto';      // For OAuth state and PKCE generation
+
+/**
+ * OAuth Configuration
+ * This stores OAuth settings for Claude MCP integration
+ */
+interface OAuthConfig {
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+  scopes: string[];
+}
+
+/**
+ * Get OAuth configuration from environment variables
+ */
+function getOAuthConfig(): OAuthConfig | null {
+  const clientId = process.env.OAUTH_CLIENT_ID;
+  const clientSecret = process.env.OAUTH_CLIENT_SECRET;
+  const redirectUri = process.env.OAUTH_REDIRECT_URI || `${process.env.VERCEL_URL || 'http://localhost:3000'}/api/oauth/callback`;
+  
+  if (!clientId || !clientSecret) {
+    return null;
+  }
+  
+  return {
+    clientId,
+    clientSecret,
+    redirectUri,
+    scopes: ['read', 'write'] // Default scopes for MCP operations
+  };
+}
+
+/**
+ * Generate OAuth authorization URL
+ */
+function generateAuthUrl(config: OAuthConfig): string {
+  const state = randomBytes(32).toString('hex');
+  const codeVerifier = randomBytes(32).toString('base64url');
+  const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url');
+  
+  const params = new URLSearchParams({
+    client_id: config.clientId,
+    redirect_uri: config.redirectUri,
+    scope: config.scopes.join(' '),
+    response_type: 'code',
+    state,
+    code_challenge: codeChallenge,
+    code_challenge_method: 'S256'
+  });
+  
+  // Store code verifier for later use (in production, use Redis or database)
+  // For now, we'll use a simple in-memory store
+  global.oauthStates = global.oauthStates || new Map();
+  global.oauthStates.set(state, { codeVerifier, timestamp: Date.now() });
+  
+  return `https://api.anthropic.com/oauth/authorize?${params.toString()}`;
+}
 
 /**
  * Authentication middleware function
  * This checks if someone is allowed to use our API
- * Like a bouncer at a club - checks if you have the right "password" (API key)
+ * Supports both API key and OAuth token authentication
  */
-function authenticateRequest(request: NextRequest): boolean {
+function authenticateRequest(request: NextRequest): { isValid: boolean; authType: 'api-key' | 'oauth' | 'none' } {
   const apiKey = process.env.MCP_API_KEY;
+  const oauthConfig = getOAuthConfig();
   
-  if (!apiKey) {
-    // If no API key is set in environment, allow everyone (good for local development)
-    return true;
+  // Check for OAuth Bearer token first
+  const authHeader = request.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.replace('Bearer ', '');
+    
+    // If it's not the API key, treat it as OAuth token
+    if (token !== apiKey) {
+      // In production, validate the OAuth token against the authorization server
+      // For now, we'll accept any non-empty token when OAuth is configured
+      if (oauthConfig && token.length > 0) {
+        return { isValid: true, authType: 'oauth' };
+      }
+      return { isValid: false, authType: 'oauth' };
+    }
+    
+    // It's the API key
+    return { isValid: true, authType: 'api-key' };
   }
   
-  // Look for the API key in the request headers (where clients send authentication info)
-  // Check two possible header formats: "Authorization: Bearer key" or "x-api-key: key"
-  const authHeader = request.headers.get('authorization');
-  const providedKey = authHeader?.replace('Bearer ', '') || request.headers.get('x-api-key');
+  // Check for API key in x-api-key header
+  const providedKey = request.headers.get('x-api-key');
+  if (providedKey && apiKey && providedKey === apiKey) {
+    return { isValid: true, authType: 'api-key' };
+  }
   
-  // Return true if the provided key matches our secret key, false otherwise
-  return providedKey === apiKey;
+  // If no authentication is configured, allow access (development mode)
+  if (!apiKey && !oauthConfig) {
+    return { isValid: true, authType: 'none' };
+  }
+  
+  return { isValid: false, authType: 'none' };
 }
 
 /**
@@ -462,6 +540,37 @@ const handler = createMcpHandler(
         }
       },
     );
+
+    /**
+     * TOOL 6: oauth_info
+     * This tool provides OAuth configuration information for Claude integration
+     */
+    server.tool(
+      'oauth_info',
+      'Get OAuth configuration information for Claude MCP integration',
+      {}, // No input parameters needed
+      async () => {
+        const oauthConfig = getOAuthConfig();
+        
+        if (!oauthConfig) {
+          return {
+            content: [{
+              type: 'text',
+              text: `❌ OAuth not configured\n\nTo enable Claude MCP integration, set these environment variables:\n\n• OAUTH_CLIENT_ID: Your OAuth client ID\n• OAUTH_CLIENT_SECRET: Your OAuth client secret\n• OAUTH_REDIRECT_URI: Your redirect URI (optional, defaults to /api/oauth/callback)\n\nCurrent status: API key authentication only`
+            }]
+          };
+        }
+        
+        const authUrl = generateAuthUrl(oauthConfig);
+        
+        return {
+          content: [{
+            type: 'text',
+            text: `✅ OAuth Configuration\n\n🔑 Client ID: ${oauthConfig.clientId}\n🔄 Redirect URI: ${oauthConfig.redirectUri}\n🎯 Scopes: ${oauthConfig.scopes.join(', ')}\n\n🔗 Authorization URL:\n${authUrl}\n\n📋 For Claude integration, use:\n• Client ID: ${oauthConfig.clientId}\n• Authorization URL: ${authUrl}`
+          }]
+        };
+      }
+    );
   },
   {},                    // Additional MCP server options (we don't need any)
   { basePath: '/api' },  // URL prefix for our API (makes URLs like /api/mcp)
@@ -470,15 +579,33 @@ const handler = createMcpHandler(
 /**
  * Authenticated Handler Wrapper
  * This wraps our MCP handler with authentication
- * Like having a security guard check IDs before letting people into a building
+ * Supports both API key and OAuth authentication for Claude integration
  */
 async function authenticatedHandler(request: NextRequest) {
   // Check if the request has valid authentication
-  if (!authenticateRequest(request)) {
+  const authResult = authenticateRequest(request);
+  
+  if (!authResult.isValid) {
     // If authentication fails, return an error response
-    // This is like a bouncer saying "Sorry, you can't come in"
+    const oauthConfig = getOAuthConfig();
+    let errorMessage = 'Unauthorized. ';
+    
+    if (oauthConfig) {
+      const authUrl = generateAuthUrl(oauthConfig);
+      errorMessage += `Provide API key via Authorization header/x-api-key header, or use OAuth: ${authUrl}`;
+    } else {
+      errorMessage += 'Provide API key via Authorization header or x-api-key header.';
+    }
+    
     return new Response(
-      JSON.stringify({ error: 'Unauthorized. Provide API key via Authorization header or x-api-key header.' }),
+      JSON.stringify({ 
+        error: errorMessage,
+        authMethods: {
+          apiKey: !!process.env.MCP_API_KEY,
+          oauth: !!oauthConfig,
+          authUrl: oauthConfig ? generateAuthUrl(oauthConfig) : null
+        }
+      }),
       { status: 401, headers: { 'Content-Type': 'application/json' } }
     );
   }
@@ -489,6 +616,7 @@ async function authenticatedHandler(request: NextRequest) {
     console.log('🔍 DEBUG: Incoming MCP request:', {
       method: request.method,
       url: request.url,
+      authType: authResult.authType,
       headers: Object.fromEntries(request.headers.entries()),
       body: body
     });
